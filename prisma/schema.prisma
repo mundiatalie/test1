@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum CorrespondenceStatus {
+  NEW
+  REVIEWED
+  REGISTERED
+  DRAFTED
+  SENT
+  CLOSED
+}
+
+enum RegisterType {
+  RFI
+  EOT
+  VARIATION
+  CLAIM
+  INVOICE
+  DIRECTION
+  MEETING_MINUTES
+  NOTICE
+  SAFETY
+  OTHER
+}
+
+model Project {
+  id                 String            @id @default(cuid())
+  name               String
+  client             String?
+  headContractor     String?
+  contractType       String?
+  startDate          DateTime?
+  timezone           String            @default("Australia/Melbourne")
+  driveRootFolderId  String?
+  sheetsRegisterIds  Json?
+  contractRules      ContractRules?
+  correspondence     CorrespondenceItem[]
+  registerEntries    RegisterEntry[]
+  draftDocuments     DraftDocument[]
+  taskAlerts         TaskAlert[]
+  auditLogs          AuditLog[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model ContractRules {
+  id                   String   @id @default(cuid())
+  projectId            String   @unique
+  noticeTypes          Json
+  defaultTimebarsDays  Json
+  approvalRoles        Json
+  project              Project  @relation(fields: [projectId], references: [id])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model CorrespondenceItem {
+  id                String               @id @default(cuid())
+  projectId         String
+  source            String
+  gmailThreadId     String?
+  gmailMessageId    String?
+  sender            String
+  recipients        String
+  subject           String
+  receivedAt        DateTime
+  driveFileIds      Json?
+  classification    RegisterType
+  confidence        Float
+  extractedFields   Json?
+  status            CorrespondenceStatus @default(NEW)
+  project           Project              @relation(fields: [projectId], references: [id])
+  registerEntries   RegisterEntry[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model RegisterEntry {
+  id                   String   @id @default(cuid())
+  projectId            String
+  type                 RegisterType
+  referenceNo          String?
+  title                String?
+  description          String?
+  dateReceived         DateTime?
+  dateDue              DateTime?
+  dateSubmitted        DateTime?
+  dateApproved         DateTime?
+  fromParty            String?
+  toParty              String?
+  correspondenceItemId String?
+  driveDocIds          Json?
+  rowId                String?
+  project              Project  @relation(fields: [projectId], references: [id])
+  correspondenceItem   CorrespondenceItem? @relation(fields: [correspondenceItemId], references: [id])
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model DraftDocument {
+  id           String   @id @default(cuid())
+  projectId    String
+  type         String
+  googleDocId  String?
+  templateId   String?
+  status       String
+  createdBy    String?
+  project      Project  @relation(fields: [projectId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model TaskAlert {
+  id              String   @id @default(cuid())
+  projectId       String
+  registerEntryId String?
+  alertType       String
+  triggerAt       DateTime
+  status          String
+  project         Project  @relation(fields: [projectId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  projectId   String
+  actorUserId String
+  action      String
+  objectType  String
+  objectId    String
+  metadata    Json?
+  project     Project  @relation(fields: [projectId], references: [id])
+  timestamp   DateTime @default(now())
+}
